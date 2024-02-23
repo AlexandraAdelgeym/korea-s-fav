@@ -146,8 +146,9 @@ def generate_options(correct_translation):
 TELEGRAM_TOKEN = "6554966811:AAGoI6Bey2dfrpSLmTOeBIPoFBhG7YA_-7s"
 
 import logging
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler
+from telegram.ext import MessageHandler, filters
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -156,11 +157,13 @@ logging.basicConfig(
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_message = "Hi! \nWhat would you like?"
-    keyboard = [
-        [InlineKeyboardButton("🆕 What's new today?", callback_data='top_things')],
-        [InlineKeyboardButton("💬 Learn Korean", callback_data='learn_korean')]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    keyboard = ReplyKeyboardMarkup([
+        [KeyboardButton("🆕 What's new today?")],
+        [KeyboardButton("💬 Learn Korean")]
+    ], resize_keyboard=True, one_time_keyboard=False)
+
+    reply_markup = keyboard.to_dict()
 
     await context.bot.send_message(chat_id=update.effective_chat.id, text=start_message, reply_markup=reply_markup)
 async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -219,14 +222,24 @@ async def handle_option_selection(update: Update, context: ContextTypes.DEFAULT_
     await context.bot.send_message(chat_id=update.effective_chat.id, text=message)
     await learn_korean(update, context)
 
+async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+
+    if text == "🆕 What's new today?":
+        await top_things(update, context)
+    elif text == "💬 Learn Korean":
+        await learn_korean(update, context)
+
 if __name__ == '__main__':
     application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
     start_handler = CommandHandler('start', start)
     application.add_handler(start_handler)
 
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
     application.add_handler(CallbackQueryHandler(button_click, pattern='top_things'))
     application.add_handler(CallbackQueryHandler(button_click, pattern='^learn_korean$|^option_'))
+
 
 
 
