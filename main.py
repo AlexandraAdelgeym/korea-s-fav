@@ -174,21 +174,6 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif callback_data.startswith('option_'):
         await handle_option_selection(update, context)
 
-async def handle_option_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    selected_option_index = int(query.data.split('_')[1])
-
-    words_pair = get_random_pair()
-    correct_translation = words_pair[1]
-    all_translations = [pair[1] for pair in get_random_pair()]
-    options = generate_options(correct_translation)
-    if selected_option_index == options.index(correct_translation):
-        message = "Correct! Next word:"
-    else:
-        message = f"Wrong! The right answer is: {correct_translation}\nNext word:"
-
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=message)
-    await learn_korean(update, context)
 
 async def top_things(update: Update, context: ContextTypes.DEFAULT_TYPE):
     combined_message_songs = "\n".join(top5_songs)
@@ -202,13 +187,17 @@ async def top_things(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text=all_messages,
                                    parse_mode='HTML')
 
+current_words_pair = None
+correct_translation = None
 
+options = None
 async def learn_korean(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    words_pair = get_random_pair()
-    correct_translation = words_pair[1]
+    global current_words_pair, correct_translation, options
+    current_words_pair = get_random_pair()
+    correct_translation = current_words_pair[1]
 
     options = generate_options(correct_translation)
-    message = f"Translate the Korean word:\n\n{words_pair[0]}"
+    message = f"Translate the Korean word:\n\n{current_words_pair[0]}"
     reply_markup = InlineKeyboardMarkup([
         [InlineKeyboardButton(options[0], callback_data='option_0')],
         [InlineKeyboardButton(options[1], callback_data='option_1')],
@@ -217,6 +206,18 @@ async def learn_korean(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ])
     await context.bot.send_message(chat_id=update.effective_chat.id, text=message, reply_markup=reply_markup)
 
+async def handle_option_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+    selected_option_index = int(query.data.split('_')[1])
+
+    if options[selected_option_index] == correct_translation:
+        message = "✅ Correct! Next word:"
+    else:
+        message = f"❌ Wrong! The right answer is: {correct_translation}\nNext word:"
+
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=message)
+    await learn_korean(update, context)
 
 if __name__ == '__main__':
     application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
