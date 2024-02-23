@@ -50,13 +50,49 @@ def get_top5():
             top5_messages.append("\n")
     return top5_messages
 top5_songs = get_top5()
-# # news
-#
 
 
+# -----------news--------
 
+def get_top_news():
+    response = requests.get("https://www.koreatimes.co.kr/www2/index.asp?ref/")
 
-#  dramas
+    soup = BeautifulSoup(response.text, 'html.parser')
+
+    center_container = soup.find('div', class_='top_center_container')
+    center_news_titles = [news.getText().strip() for news in center_container if news.getText().strip() != '']
+    center_news_links = [link['href'].strip() for link in center_container.find_all('a')]
+    # print(center_news_links)
+
+    side_container = soup.find_all('div', class_='top_side_container')
+    side_news_titles = set()
+    side_news_links = set()
+
+    for element in side_container:
+        news_title = element.getText().strip()
+        if news_title != '':
+            side_news_titles.add(news_title)
+
+        links = element.find_all('a')
+        for link in links:
+            href = link.get('href', '').strip()
+            if href != '':
+                side_news_links.add(href)
+    side_news_titles = list(side_news_titles)
+    side_news_links = list(side_news_links)
+    all_titles = center_news_titles + side_news_titles
+    all_urls = center_news_links + side_news_links
+
+    top_messages = []
+    rate = 1
+    for title, url in zip(all_titles, all_urls):
+        top_messages.append(f'{rate}. "{title}" <a href="https://www.koreatimes.co.kr/{url}">Read</a>\n')
+        rate += 1
+    return top_messages
+
+top_news = get_top_news()
+
+#  ----------dramas-----------
 
 def get_top_dramas():
     response = requests.get("https://mydramalist.com/")
@@ -77,19 +113,37 @@ def get_top_dramas():
 top_dramas = get_top_dramas()
 
 
+#---------learn korean-------
+import csv
+import random
+
+csv_file_path = 'data/korean_words.csv'
+random_pair = None
+
+def get_random_pair():
+    global random_pair
+    pairs = []
+    with open(csv_file_path, 'r', encoding='utf-8') as csvfile:
+        reader = csv.reader(csvfile)
+        next(reader)
+        for row in reader:
+            korean_word, english_translation = row
+            pairs.append((korean_word.strip(), english_translation.strip()))
+
+    random_pair = random.choice(pairs)
+    return random_pair
 
 
 
 
+#  ---------bot----------
 
 
-#  bot
 TELEGRAM_TOKEN = "6554966811:AAGoI6Bey2dfrpSLmTOeBIPoFBhG7YA_-7s"
 
 import logging
-from telegram import Update
-from aiogram.types import ReplyKeyboardRemove, ReplyKeyboardMarkup, KeyboardButton
-from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -97,22 +151,48 @@ logging.basicConfig(
 )
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    start_message = "Hi! \nWhat would you like?"
+    keyboard = [
+        [InlineKeyboardButton("What's new today?", callback_data='top_things')],
+        [InlineKeyboardButton("Learn Korean", callback_data='learn_korean')]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=start_message, reply_markup=reply_markup)
+async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    callback_data = query.data
+
+    if callback_data == 'top_things':
+        await top_things(update, context)
+    elif callback_data == 'learn_korean':
+        await learn_korean(update, context)
+
+async def top_things(update: Update, context: ContextTypes.DEFAULT_TYPE):
     combined_message_songs = "\n".join(top5_songs)
 
     combined_message_dramas = "\n".join(top_dramas)
+    combined_message_news = "\n".join(top_news)
 
     all_messages = (f"Top 5 songs: \n \n{combined_message_songs} \n\nTop dramas: "
-                    f"\n \n{combined_message_dramas}")
+                    f"\n \n{combined_message_dramas}\n\nTop news: \n\n{combined_message_news}")
 
     await context.bot.send_message(chat_id=update.effective_chat.id, text=all_messages,
                                    parse_mode='HTML')
 
+async def learn_korean(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    words_pair = get_random_pair()
+    message = f"{words_pair[0]}\n{words_pair[1]}"
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=message)
 
 if __name__ == '__main__':
     application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
     start_handler = CommandHandler('start', start)
     application.add_handler(start_handler)
+
+    application.add_handler(CallbackQueryHandler(button_click, pattern='top_things|learn_korean'))
+
 
 
     application.run_polling()
