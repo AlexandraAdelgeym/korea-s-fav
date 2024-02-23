@@ -59,34 +59,49 @@ def get_top_news():
     soup = BeautifulSoup(response.text, 'html.parser')
 
     center_container = soup.find('div', class_='top_center_container')
-    center_news_titles = [news.getText().strip() for news in center_container if news.getText().strip() != '']
-    center_news_links = [link['href'].strip() for link in center_container.find_all('a')]
-    # print(center_news_links)
+    center_news_titles_set = set(list(news.getText().strip() for news in center_container if news.getText().strip() != ''))
+    split_center_news_titles = []
+    for title in center_news_titles_set:
+        split_titles = title.split("     ")
+        split_titles = [split_title.strip() for split_title in split_titles]
+        split_center_news_titles.extend(split_titles)
+    center_news_links_set = set(list(link['href'].strip() for link in center_container.find_all('a')))
 
-    side_container = soup.find_all('div', class_='top_side_container')
-    side_news_titles = set()
-    side_news_links = set()
+    upper_titles = []
+    upper_links = []
+    for article in soup.find_all('article'):
+        title_element = article.find('div', class_='top_side_photo_top_headline')
+        if title_element:
+            title = title_element.a.text.strip()
+            href = title_element.a['href']
+            upper_titles.append(title)
+            upper_links.append(href)
+    upper_titles_set = set(upper_titles)
+    upper_links_set = set(upper_links)
 
-    for element in side_container:
-        news_title = element.getText().strip()
-        if news_title != '':
-            side_news_titles.add(news_title)
 
-        links = element.find_all('a')
-        for link in links:
-            href = link.get('href', '').strip()
-            if href != '':
-                side_news_links.add(href)
-    side_news_titles = list(side_news_titles)
-    side_news_links = list(side_news_links)
-    all_titles = center_news_titles + side_news_titles
-    all_urls = center_news_links + side_news_links
+    side_titles = []
+    side_links = []
+    title_element = soup.find_all('div', class_='top_side_sub_headline LoraMedium')
+    for element in title_element:
+        title = element.a.text
+        side_titles.append(title)
+        href = element.a['href']
+        side_links.append(href)
+    side_titles_set = set(side_titles)
+    side_links_set = set(side_links)
 
+
+    center_news_links = list(center_news_links_set)
+    side_titles = list(side_titles_set)
+    side_links_set = list(side_links_set)
+
+    all_titles = split_center_news_titles + side_titles
+    all_urls = center_news_links + side_links_set
     top_messages = []
     for title, url in zip(all_titles, all_urls):
         top_messages.append(f'📰 "{title}" <a href="https://www.koreatimes.co.kr/{url}">Read</a>\n')
     return top_messages
-
 top_news = get_top_news()
 
 #  ----------dramas-----------
