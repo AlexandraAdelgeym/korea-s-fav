@@ -35,7 +35,6 @@ def get_top5():
     top5 = song_names[:5]
     top5_messages = []
 
-    rate = 1
 
     for song_name, artist_name in zip(top5, new_artist_names):
         query = f"{song_name} {artist_name}"
@@ -52,20 +51,24 @@ top5_songs = get_top5()
 
 
 # -----------news--------
-
+from collections import OrderedDict
 def get_top_news():
     response = requests.get("https://www.koreatimes.co.kr/www2/index.asp?ref/")
 
     soup = BeautifulSoup(response.text, 'html.parser')
 
     center_container = soup.find('div', class_='top_center_container')
-    center_news_titles_set = set(list(news.getText().strip() for news in center_container if news.getText().strip() != ''))
+    center_news_titles = [news.getText().strip() for news in center_container if news.getText().strip() != '']
     split_center_news_titles = []
-    for title in center_news_titles_set:
+    for title in center_news_titles:
         split_titles = title.split("     ")
         split_titles = [split_title.strip() for split_title in split_titles]
         split_center_news_titles.extend(split_titles)
-    center_news_links_set = set(list(link['href'].strip() for link in center_container.find_all('a')))
+    center_news_links = [link['href'].strip() for link in center_container.find_all('a', href=True)]
+
+    center_news_links = list(OrderedDict.fromkeys(center_news_links))
+    split_center_news_titles = list(OrderedDict.fromkeys(split_center_news_titles))
+
 
     upper_titles = []
     upper_links = []
@@ -76,8 +79,8 @@ def get_top_news():
             href = title_element.a['href']
             upper_titles.append(title)
             upper_links.append(href)
-    upper_titles_set = set(upper_titles)
-    upper_links_set = set(upper_links)
+    upper_titles = list(OrderedDict.fromkeys(upper_titles))
+    upper_links = list(OrderedDict.fromkeys(upper_links))
 
 
     side_titles = []
@@ -88,23 +91,21 @@ def get_top_news():
         side_titles.append(title)
         href = element.a['href']
         side_links.append(href)
-    side_titles_set = set(side_titles)
-    side_links_set = set(side_links)
+    side_titles = list(OrderedDict.fromkeys(side_titles))
+    side_links = list(OrderedDict.fromkeys(side_links))
 
 
-    center_news_links = list(center_news_links_set)
-    side_titles = list(side_titles_set)
-    side_links_set = list(side_links_set)
 
-    all_titles = split_center_news_titles + side_titles
-    all_urls = center_news_links + side_links_set
+    all_titles = split_center_news_titles + upper_titles + side_titles
+    all_urls = center_news_links + upper_links + side_links
+
     top_messages = []
     for title, url in zip(all_titles, all_urls):
         top_messages.append(f'📰 "{title}" <a href="https://www.koreatimes.co.kr/{url}">Read</a>\n')
     return top_messages
 top_news = get_top_news()
 
-#  ----------dramas-----------
+# ----------dramas-----------
 
 def get_top_dramas():
     response = requests.get("https://mydramalist.com/")
@@ -155,7 +156,7 @@ def generate_options(correct_translation):
         return options
 
 
-#  ---------bot----------
+# #  ---------bot----------
 
 
 TELEGRAM_TOKEN = "6554966811:AAGoI6Bey2dfrpSLmTOeBIPoFBhG7YA_-7s"
