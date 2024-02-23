@@ -44,8 +44,7 @@ def get_top5():
             track = results['tracks']['items'][0]
             track_name = track['name']
             track_url = track['external_urls']['spotify']
-            top5_messages.append(f' {rate}. "{track_name}"  by  {artist_name} <a href="{track_url}">Listen</a>\n')
-            rate += 1
+            top5_messages.append(f'🎵  "{track_name}"  by  {artist_name} <a href="{track_url}">Listen</a>\n')
         else:
             top5_messages.append("\n")
     return top5_messages
@@ -84,10 +83,8 @@ def get_top_news():
     all_urls = center_news_links + side_news_links
 
     top_messages = []
-    rate = 1
     for title, url in zip(all_titles, all_urls):
-        top_messages.append(f'{rate}. "{title}" <a href="https://www.koreatimes.co.kr/{url}">Read</a>\n')
-        rate += 1
+        top_messages.append(f'📰 "{title}" <a href="https://www.koreatimes.co.kr/{url}">Read</a>\n')
     return top_messages
 
 top_news = get_top_news()
@@ -104,16 +101,14 @@ def get_top_dramas():
     titles = [drama.getText().strip() for drama in drama_names]
     title_urls =[drama.get('href') for drama in drama_names]
     top_messages = []
-    rate = 1
     for title, url in zip(titles, title_urls):
-        top_messages.append(f'{rate}. "{title}" <a href="https://mydramalist.com{url}">Watch</a>')
-        rate += 1
+        top_messages.append(f'🎬  "{title}" <a href="https://mydramalist.com{url}">Watch</a>')
     return top_messages
 
 top_dramas = get_top_dramas()
 
 
-#---------learn korean-------
+# #---------learn korean-------
 import csv
 import random
 
@@ -133,7 +128,16 @@ def get_random_pair():
     random_pair = random.choice(pairs)
     return random_pair
 
-
+def generate_options(correct_translation):
+    with open(csv_file_path, 'r', encoding='utf-8') as file:
+        reader = csv.reader(file)
+        next(reader)
+        pairs = [row for row in reader]
+        random_pairs = random.sample(pairs, 3)
+        options = [pair[1] for pair in random_pairs]
+        options.append(correct_translation)
+        random.shuffle(options)
+        return options
 
 
 #  ---------bot----------
@@ -153,8 +157,8 @@ logging.basicConfig(
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_message = "Hi! \nWhat would you like?"
     keyboard = [
-        [InlineKeyboardButton("What's new today?", callback_data='top_things')],
-        [InlineKeyboardButton("Learn Korean", callback_data='learn_korean')]
+        [InlineKeyboardButton("🆕 What's new today?", callback_data='top_things')],
+        [InlineKeyboardButton("💬 Learn Korean", callback_data='learn_korean')]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -167,6 +171,24 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await top_things(update, context)
     elif callback_data == 'learn_korean':
         await learn_korean(update, context)
+    elif callback_data.startswith('option_'):
+        await handle_option_selection(update, context)
+
+async def handle_option_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    selected_option_index = int(query.data.split('_')[1])
+
+    words_pair = get_random_pair()
+    correct_translation = words_pair[1]
+    all_translations = [pair[1] for pair in get_random_pair()]
+    options = generate_options(correct_translation)
+    if selected_option_index == options.index(correct_translation):
+        message = "Correct! Next word:"
+    else:
+        message = f"Wrong! The right answer is: {correct_translation}\nNext word:"
+
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=message)
+    await learn_korean(update, context)
 
 async def top_things(update: Update, context: ContextTypes.DEFAULT_TYPE):
     combined_message_songs = "\n".join(top5_songs)
@@ -174,16 +196,27 @@ async def top_things(update: Update, context: ContextTypes.DEFAULT_TYPE):
     combined_message_dramas = "\n".join(top_dramas)
     combined_message_news = "\n".join(top_news)
 
-    all_messages = (f"Top 5 songs: \n \n{combined_message_songs} \n\nTop dramas: "
+    all_messages = (f"Top songs: \n \n{combined_message_songs} \n\nTop dramas: "
                     f"\n \n{combined_message_dramas}\n\nTop news: \n\n{combined_message_news}")
 
     await context.bot.send_message(chat_id=update.effective_chat.id, text=all_messages,
                                    parse_mode='HTML')
 
+
 async def learn_korean(update: Update, context: ContextTypes.DEFAULT_TYPE):
     words_pair = get_random_pair()
-    message = f"{words_pair[0]}\n{words_pair[1]}"
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=message)
+    correct_translation = words_pair[1]
+
+    options = generate_options(correct_translation)
+    message = f"Translate the Korean word:\n\n{words_pair[0]}"
+    reply_markup = InlineKeyboardMarkup([
+        [InlineKeyboardButton(options[0], callback_data='option_0')],
+        [InlineKeyboardButton(options[1], callback_data='option_1')],
+        [InlineKeyboardButton(options[2], callback_data='option_2')],
+        [InlineKeyboardButton(options[3], callback_data='option_3')]
+    ])
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=message, reply_markup=reply_markup)
+
 
 if __name__ == '__main__':
     application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
@@ -191,7 +224,9 @@ if __name__ == '__main__':
     start_handler = CommandHandler('start', start)
     application.add_handler(start_handler)
 
-    application.add_handler(CallbackQueryHandler(button_click, pattern='top_things|learn_korean'))
+    application.add_handler(CallbackQueryHandler(button_click, pattern='top_things'))
+    application.add_handler(CallbackQueryHandler(button_click, pattern='^learn_korean$|^option_'))
+
 
 
 
