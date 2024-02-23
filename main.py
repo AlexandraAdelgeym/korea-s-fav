@@ -1,6 +1,6 @@
-
 # spotify
 import spotipy
+from aiogram import types
 from spotipy.oauth2 import SpotifyOAuth
 from bs4 import BeautifulSoup
 import requests
@@ -44,7 +44,7 @@ def get_top5():
             track = results['tracks']['items'][0]
             track_name = track['name']
             track_url = track['external_urls']['spotify']
-            top5_messages.append(f' {rate}. "{track_name}" by {artist_name} <a href="{track_url}">Listen</a>\n')
+            top5_messages.append(f' {rate}. "{track_name}"  by  {artist_name} <a href="{track_url}">Listen</a>\n')
             rate += 1
         else:
             top5_messages.append("\n")
@@ -52,14 +52,43 @@ def get_top5():
 top5_songs = get_top5()
 # # news
 #
-#
-# # dramas
-#
-# bot
+
+
+
+
+#  dramas
+
+def get_top_dramas():
+    response = requests.get("https://mydramalist.com/")
+
+    soup = BeautifulSoup(response.text, 'html.parser')
+    active_div = soup.find('div', class_='tab-pane active')
+
+    drama_names = active_div.find_all('a', class_='title')
+    titles = [drama.getText().strip() for drama in drama_names]
+    title_urls =[drama.get('href') for drama in drama_names]
+    top_messages = []
+    rate = 1
+    for title, url in zip(titles, title_urls):
+        top_messages.append(f'{rate}. "{title}" <a href="https://mydramalist.com{url}">Watch</a>')
+        rate += 1
+    return top_messages
+
+top_dramas = get_top_dramas()
+
+
+
+
+
+
+
+
+#  bot
 TELEGRAM_TOKEN = "6554966811:AAGoI6Bey2dfrpSLmTOeBIPoFBhG7YA_-7s"
 
 import logging
 from telegram import Update
+from aiogram.types import ReplyKeyboardRemove, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler
 
 logging.basicConfig(
@@ -67,13 +96,15 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    combined_message = "\n".join(top5_songs)
+    combined_message_songs = "\n".join(top5_songs)
 
-    combined_message_with_links = combined_message.replace('[Listen]', '<a href="{track_url}">Listen</a>')
+    combined_message_dramas = "\n".join(top_dramas)
 
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=combined_message_with_links,
+    all_messages = (f"Top 5 songs: \n \n{combined_message_songs} \n\nTop dramas: "
+                    f"\n \n{combined_message_dramas}")
+
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=all_messages,
                                    parse_mode='HTML')
 
 
