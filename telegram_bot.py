@@ -18,7 +18,7 @@ class TelegramBot:
         self.application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
         self.spotify_client = SpotifyClient("167f663ad2ec4bdbb0b4b0383a181301", "ffec7936571a4fc6934be6128e5cb56f", "http://example.com", "Alexandra")
-        self.korean_learning_client = KoreanLearningClient('data/korean_words.csv')
+        self.korean_learning_client = KoreanLearningClient('data/korean_words.csv', 'data/words_to_learn.csv')
         self.news_client = NewsClient()
         self.drama_client = DramaClient()
 
@@ -98,6 +98,7 @@ class TelegramBot:
         correct_translation = self.current_words_pair[1]
 
         if self.options[selected_option_index] == correct_translation:
+            self.korean_learning_client.remove_word_pair(self.current_words_pair)
             message = "✅ Correct! Next word:"
         else:
             message = f"❌ Wrong! The right answer is: {correct_translation}\nNext word:"
