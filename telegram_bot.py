@@ -77,17 +77,17 @@ class TelegramBot:
 
 
     async def learn_korean(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        current_words_pair = self.korean_learning_client.get_random_pair()
-        correct_translation = current_words_pair[1]
+        self.current_words_pair = self.korean_learning_client.get_random_pair()
+        self.correct_translation = self.current_words_pair[1]
 
-        options = self.korean_learning_client.generate_options(correct_translation)
+        self.options = self.korean_learning_client.generate_options(self.correct_translation)
 
-        message = f"Translate the Korean word:\n\n{current_words_pair[0]}"
+        message = f"Translate the Korean word:\n\n{self.current_words_pair[0]}"
         reply_markup = InlineKeyboardMarkup([
-            [InlineKeyboardButton(options[0], callback_data='option_0')],
-            [InlineKeyboardButton(options[1], callback_data='option_1')],
-            [InlineKeyboardButton(options[2], callback_data='option_2')],
-            [InlineKeyboardButton(options[3], callback_data='option_3')]
+            [InlineKeyboardButton(self.options[0], callback_data='option_0')],
+            [InlineKeyboardButton(self.options[1], callback_data='option_1')],
+            [InlineKeyboardButton(self.options[2], callback_data='option_2')],
+            [InlineKeyboardButton(self.options[3], callback_data='option_3')]
         ])
         await context.bot.send_message(chat_id=update.effective_chat.id, text=message, reply_markup=reply_markup)
 
